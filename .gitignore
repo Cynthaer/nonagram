@@ -1,1 +1,3 @@
 .idea/dictionaries/Nick.xml
+*.pyc
+.cache/v/cache/lastfailed

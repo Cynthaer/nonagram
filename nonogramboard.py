@@ -1,8 +1,13 @@
 import json
+from builtins import hasattr
+
 import numpy as np
 from enum import Enum
-from typing import List, Dict, Tuple, Iterable
+from typing import List, Dict, Tuple, Union, MutableSequence, Iterable, Any
 from itertools import groupby
+
+
+Hint = Iterable[int]
 
 
 class State(Enum):
@@ -11,64 +16,24 @@ class State(Enum):
     NO = 2
 
 
-class NonogramTile:
-    state: State
-
-    def __init__(self, state: State = State.BLANK) -> None:
-        self.state = state
-
-    def __repr__(self) -> str:
-        return 'NonagramTile(state={})'.format(self.state)
-
-    def __str__(self) -> str:
-        return str(self.state.name)
-
-    def __eq__(self, other: object) -> bool:
-        return self.state == other.state
-
-    def show(self) -> str:
-        if self.state == State.BLANK:
-            return 'O'
-        elif self.state == State.YES:
-            return '■'
-        elif self.state == State.NO:
-            return '∙'
-
-    def copy(self) -> "NonogramTile":
-        return NonogramTile(self.state)
-
-
-class NonogramLine(list):
-    def update(self, values: Iterable[State]) -> None:
-        it = iter(self)
-        for v in values:
-            # if type(v) != State:
-            #     raise TypeError('Expected State, got {}'.format(type(v)))
-
-            next(it).state = v
-
-    def rle(self) -> List[Tuple[State, List[NonogramTile]]]:
-        """Run-length encoding"""
-        return [(k.state, list(g)) for k, g in groupby(self)]
-
-
 class NonogramBoard:
     _row_hints: List[List[int]]
     _col_hints: List[List[int]]
-    tiles: np.ndarray[State]
+    tiles: np.ndarray
 
-    def __init__(self, hints: Dict[str, List[List[int]]]) -> None:
-        self._row_hints = hints['rows']
-        self._col_hints = hints['cols']
-
-        self.tiles = np.asarray([[State.BLANK for _ in range(self.shape[1])]
-                                 for _ in range(self.shape[0])])
+    def __init__(self, row_hints: Iterable[Hint], col_hints: Iterable[Hint]) -> None:
+        self._row_hints = [list(rh) for rh in row_hints]
+        self._col_hints = [list(ch) for ch in col_hints]
+        self.tiles = np.asarray([[State.BLANK] * len(self._col_hints)] * self.shape[0])
 
         if not self._isvalid():
             raise Exception('Invalid hint configuration')
 
-    def __getitem__(self, key: int) -> List[NonogramTile]:
+    def __getitem__(self, key: Any) -> Union[np.ndarray, State]:
         return self.tiles[key]
+
+    def __setitem__(self, key: Any, value) -> None:
+        self.tiles[key] = value
 
     def __repr__(self) -> str:
         return repr(self.tiles)
@@ -81,22 +46,22 @@ class NonogramBoard:
         hor_pad = len(r_hints[0]) * 2
 
         output = ''
-        for i in range(len(c_hints)):
-            output += '{pad}{hints}\n'.format(pad=' ' * hor_pad,
-                                              hints=' '.join(c_hints[i]))
+        for c_h in c_hints:
+            output += f"{' ' * hor_pad}{' '.join(c_h)}\n"
 
-        output += '{pad}{line}\n'.format(pad=' ' * hor_pad,
-                                         line='-' * (len(c_hints[0]) * 2 - 1))
+        output += f"{' ' * hor_pad}{'-' * (self.shape[1] * 2 - 1)}\n"
 
         for i in range(len(r_hints)):
             output += '{hints}|{tiles}\n'.format(hints=' '.join(r_hints[i]),
-                                                 tiles=' '.join([x.show() for x in self.tiles[i]]))
+                                                 tiles=' '.join([str(x.value) for x in self.tiles[i]]))
 
         return output
 
     @property
     def shape(self) -> Tuple[int, int]:
         """:return: (height, width)"""
+        if hasattr(self, 'tiles'):
+            return self.tiles.shape
         return len(self._row_hints), len(self._col_hints)
 
     def hints(self, axis: int) -> List[List[int]]:
@@ -105,11 +70,11 @@ class NonogramBoard:
         elif axis == 1:
             return self._col_hints
 
-    def line(self, index: int, axis: int) -> NonogramLine:
+    def line(self, index: int, axis: int) -> np.ndarray:
         if axis == 0:
-            return NonogramLine(self.tiles[index])
+            return self.tiles[index]
         elif axis == 1:
-            return NonogramLine([r[index] for r in self.tiles])
+            return self.tiles[:,index]
 
     def solved(self, index: int = None, axis: int = None) -> bool:
         """
@@ -138,10 +103,7 @@ class NonogramBoard:
     def _line_solved(self, index: int, axis: int):
         hint = self.hints(axis)[index]
         line = self.line(index, axis)
-        line_state = ([len(list(g))
-                      for k, g in groupby(line, lambda x: x.state)
-                      if k == State.YES])
-
+        line_state = [len(list(g)) for k, g in groupby(line) if k == State.YES]
         return line_state == hint
 
     def _isvalid(self) -> bool:
@@ -161,19 +123,19 @@ class NonogramBoard:
 def read_json(path: str) -> NonogramBoard:
     with open(path) as f:
         d = json.load(f)
-        return NonogramBoard(d)
-
-
-def _pad_list(l: List, length: int, value: object = None) -> List:
-    x = l.copy()
-    while len(x) < length:
-        x.insert(0, value)
-    return x
+        return NonogramBoard(**d)
 
 
 def _justify_hints(hints: List[List[int]]) -> List[List[str]]:
     max_len = max(map(len, hints))
-    return [list(map(str, _pad_list(l, max_len, ' '))) for l in hints]
+    return [list(map(str, _left_padded(l, max_len, ' '))) for l in hints]
+
+
+def _left_padded(l: List, length: int, value: object = None) -> List:
+    x = l.copy()
+    while len(x) < length:
+        x.insert(0, value)
+    return x
 
 
 def _transpose(ls: List[List]) -> List[List]:
@@ -182,10 +144,6 @@ def _transpose(ls: List[List]) -> List[List]:
 
 if __name__ == '__main__':
     board = read_json('testboard.json')
-    board[0][0].state = State.YES
-    board[0][1].state = State.NO
+    board[0,0] = State.YES
+    board[0,1] = State.NO
     print(board)
-
-    nl = board.line(1, 0)
-    print('line: {}'.format(nl))
-    print(nl.rle())

@@ -42,7 +42,7 @@ def _rule0(board: nb.NonogramBoard, index: int, axis: int) -> bool:
 
     pattern = [[nb.State.YES] * h for h in hint]  # [[Y], [Y, Y]]
     pattern = list(chain(*intersperse(pattern, [nb.State.NO])))  # [Y, N, Y, Y]
-    line.update(pattern)
+    line[:] = pattern
 
     return True
 
