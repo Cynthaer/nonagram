@@ -20,11 +20,18 @@ class NonogramSolver:
 
     def _pass(self, rule: int, axis: int) -> None:
         for i in range(self.board.shape[axis]):
-            if self.board.solved(i, axis):
-                continue
-
             if rule == 0:
                 self._rule0(i, axis)
+
+    # def _apply_rule(self, rule: int, index: int, axis: int):
+    #     if self.board.solved(index, axis):
+    #         return False
+    #
+    #     hint = self.board.hints[axis][index]
+    #     line = self.board.line(index, axis)
+    #
+    #     if rule == 0:
+    #         pass
 
     def _rule0(self, index: int, axis: int) -> bool:
         """If a single hint `h` is the full length of line `l`, then
@@ -32,10 +39,6 @@ class NonogramSolver:
 
         :return: True if the board has been updated, else False
         """
-        # already handled
-        if self.board.solved(index, axis):
-            return False
-
         hint = self.board.hints[axis][index]
         line = self.board.line(index, axis)
 
@@ -55,9 +58,7 @@ class NonogramSolver:
         hint = self.board.hints[axis][index]
         line = self.board.line(index, axis)
 
-        # already handled
-        if self.board.solved(index, axis):
-            return False
+
 
 
 if __name__ == '__main__':

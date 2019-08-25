@@ -124,11 +124,14 @@ def read_json(path: str) -> NonogramBoard:
         return NonogramBoard(**d)
 
 
-def as_states(iterable: Iterable[int]):
-    return [State(i) for i in iterable]
+def as_states(iterable: Iterable[Union[int, Iterable[int]]]) -> List[Union[State, List[State]]]:
+    if isinstance(iterable[0], int):
+        return [State(i) for i in iterable]
+
+    return [[State(i) for i in row] for row in iterable]
 
 
-def _justify_hints(hints: List[List[int]]) -> List[List[str]]:
+def _justify_hints(hints: Iterable[List[int]]) -> List[List[str]]:
     max_len = max(map(len, hints))
     return [list(map(str, _left_padded(l, max_len, ' '))) for l in hints]
 
@@ -146,6 +149,6 @@ def _transpose(ls: Iterable[Iterable]) -> List[List]:
 
 if __name__ == '__main__':
     board = read_json('testboard.json')
-    board[0,0] = State.YES
-    board[0,1] = State.NO
+    board.tiles[0,0] = State.YES
+    board.tiles[0,1] = State.NO
     print(board)
