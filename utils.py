@@ -14,4 +14,4 @@ def intersperse(iterable: Iterable, delimiter: object) -> List:
 
 
 def flatten(iterables: Iterable[Iterable]) -> List:
-    return list(itertools.chain(iterables))
+    return list(itertools.chain(*iterables))

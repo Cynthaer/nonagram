@@ -44,9 +44,7 @@ class NonogramSolver:
             return False
 
         pattern = [[nb.State.YES] * h for h in hint]  # [[Y], [Y, Y]]
-        pattern = flatten(*intersperse(pattern, [nb.State.NO]))  # [Y, N, Y, Y]
-        line[:] = pattern
-
+        line[:] = flatten(*intersperse(pattern, [nb.State.NO]))  # [Y, N, Y, Y]
         return True
 
     def _rule1(self, index: int, axis: int) -> bool:
@@ -63,6 +61,5 @@ class NonogramSolver:
 
 
 if __name__ == '__main__':
-    brd = nb.read_json('testboard.json')
-    print(brd)
-    print(brd)
+    brd = nb.read_json('tests/testboard.json')
+
