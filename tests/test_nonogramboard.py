@@ -1,5 +1,7 @@
 import pytest
-import nonogramboard as nb
+
+from nonogramboard import State, NonogramBoard, as_states
+from nonogramsolver import NonogramSolver
 
 
 class TestNonogramBoard:
@@ -7,17 +9,17 @@ class TestNonogramBoard:
         assert blank_board.shape == (5, 5)
 
     def test_get_and_set_line(self, blank_board):
-        blank_board.line(0, 0)[:] = nb.as_states([1, 1, 1, 2, 1])
-        assert blank_board.tiles[0, 0] == nb.State.YES
-        assert blank_board.tiles[0, 2:].tolist() == [nb.State.YES, nb.State.NO, nb.State.YES]
+        blank_board.line(0, 0)[:] = as_states([1, 1, 1, 2, 1])
+        assert blank_board.tiles[0,0] == State.YES
+        assert blank_board.tiles[0,2:].tolist() == [State.YES, State.NO, State.YES]
 
     def test_invalid_hints_fail(self):
         with pytest.raises(Exception):
-            nb.NonogramBoard([[1]], [[2]])
+            NonogramBoard([[1]], [[2]])
 
     def test_invalid_tile_shape_fails(self):
         with pytest.raises(Exception):
-            nb.NonogramBoard([[1]], [[1]], [[nb.State.BLANK, nb.State.BLANK]])
+            NonogramBoard([[1]], [[1]], [[0, 0]])
 
     def test_identify_solved_lines(self, in_progress_board):
         board = in_progress_board
@@ -33,4 +35,25 @@ class TestNonogramBoard:
 
 
 class TestNonogramSolver:
-    pass
+    def test_invalid_rule_raises_valueerror(self, blank_board):
+        solver = NonogramSolver(blank_board)
+        with pytest.raises(ValueError, message="'fake_rule' is not a valid rule."):
+            solver._apply_rule('fake_rule', 0, 0)
+
+    def test_skip_rule_if_line_is_solved(self, solved_board):
+        solver = NonogramSolver(solved_board)
+        assert not solver._apply_rule('full_hint', 4, 0)
+
+    def test_full_hint_rule_fills_full_line(self, blank_board):
+        solver = NonogramSolver(blank_board)
+        assert solver._apply_rule('full_hint', 4, 1)
+        assert solver.board.line(4, 1).tolist() == [State.YES, State.YES, State.YES, State.YES, State.YES]
+
+    def test_full_hint_rule_fills_split_line(self, blank_board):
+        solver = NonogramSolver(blank_board)
+        assert solver._apply_rule('full_hint', 0, 0)
+        assert solver.board.line(0, 0).tolist() == [State.YES, State.YES, State.YES, State.NO, State.YES]
+
+    def test_full_hint_rule_ignores_irrelevant_line(self, blank_board):
+        solver = NonogramSolver(blank_board)
+        assert not solver._apply_rule('full_hint', 4, 0)

@@ -1,12 +1,11 @@
-import nonogramboard as nb
-from itertools import chain
+from nonogramboard import State, NonogramBoard
 from utils import *
 
 
 class NonogramSolver:
-    board: nb.NonogramBoard
+    board: NonogramBoard
 
-    def __init__(self, board: nb.NonogramBoard):
+    def __init__(self, board: NonogramBoard):
         self.board = board
 
     def solve(self) -> None:
@@ -23,42 +22,39 @@ class NonogramSolver:
             if rule == 0:
                 self._rule0(i, axis)
 
-    # def _apply_rule(self, rule: int, index: int, axis: int):
-    #     if self.board.solved(index, axis):
-    #         return False
-    #
-    #     hint = self.board.hints[axis][index]
-    #     line = self.board.line(index, axis)
-    #
-    #     if rule == 0:
-    #         pass
+    def _apply_rule(self, rule: str, index: int, axis: int):
+        """Applies the indicated rule to the indicated line on the board.
 
-    def _rule0(self, index: int, axis: int) -> bool:
-        """If a single hint `h` is the full length of line `l`, then
-        the entire line must be filled.
-
+        :param rule: the rule to apply
+        :param index: the index of the line
+        :param axis: 0 = rows, 1 = columns
         :return: True if the board has been updated, else False
-        """
-        hint = self.board.hints[axis][index]
-        line = self.board.line(index, axis)
 
-        # does rule apply?
-        if sum(hint) + len(hint) - 1 != len(line):
+        Rules
+        =====
+        *Rule 1:* If the hint covers the entire line, solve the line.
+        """
+
+        if self.board.solved(index, axis):
             return False
 
-        pattern = [[nb.State.YES] * h for h in hint]  # [[Y], [Y, Y]]
-        line[:] = flatten(*intersperse(pattern, [nb.State.NO]))  # [Y, N, Y, Y]
-        return True
-
-    def _rule1(self, index: int, axis: int) -> bool:
-        """
-
-        :return: True if the board has been updated, else False
-        """
         hint = self.board.hints[axis][index]
         line = self.board.line(index, axis)
 
+        if rule == 'full_hint':
+            if sum(hint) + len(hint) - 1 != len(line):
+                # doesn't apply
+                return False
 
+            pattern = [[State.YES] * h for h in hint]  # [[Y], [Y, Y]]
+            line[:] = flatten(intersperse(pattern, [State.NO]))  # [Y, N, Y, Y]
+            return True
+        elif rule == 'extend edge':
+            pass
+        else:
+            raise ValueError(f"'{rule}' is not a valid rule.")
+
+        return False
 
 
 if __name__ == '__main__':

@@ -1,11 +1,10 @@
 import json
 from builtins import hasattr
+from enum import Enum
+from itertools import groupby
+from typing import List, Tuple, Union, Iterable, Any
 
 import numpy as np
-from enum import Enum
-from typing import List, Dict, Tuple, Union, MutableSequence, Iterable, Any
-from itertools import groupby
-
 
 Hint = Iterable[int]
 
@@ -27,9 +26,9 @@ class NonogramBoard:
         self.hints = [[list(rh) for rh in row_hints], [list(ch) for ch in col_hints]]
 
         if tiles:
-            self.tiles = np.asarray(tiles)
+            self.tiles = np.asarray(as_states(tiles))
         else:
-            self.tiles = np.asarray([[State.BLANK] * self.shape[1]] * self.shape[0])
+            self.tiles = np.full(self.shape, State.BLANK)
 
         if not self._isvalid():
             raise Exception('Invalid hint configuration')
@@ -42,17 +41,16 @@ class NonogramBoard:
         # c_hints are horizontal for ease of display
         c_hints = _transpose(_justify_hints(self.hints[1]))
 
-        hor_pad = len(r_hints[0]) * 2
+        hor_pad = ' ' * (len(r_hints[0]) * 2)
 
         output = ''
         for c_h in c_hints:
-            output += f"{' ' * hor_pad}{' '.join(c_h)}\n"
+            output += f"{hor_pad}{' '.join(c_h)}\n"
 
-        output += f"{' ' * hor_pad}{'-' * (self.shape[1] * 2 - 1)}\n"
+        output += f"{hor_pad}{'-' * (self.shape[1] * 2 - 1)}\n"
 
         for i in range(len(r_hints)):
-            output += '{hints}|{tiles}\n'.format(hints=' '.join(r_hints[i]),
-                                                 tiles=' '.join([str(x.value) for x in self.tiles[i]]))
+            output += f"{' '.join(r_hints[i])}|{' '.join([str(x.value) for x in self.tiles[i]])}\n"
 
         return output
 
