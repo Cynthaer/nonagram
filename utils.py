@@ -1,7 +1,9 @@
-from typing import Sequence, List
+import itertools
+import numpy as np
+from typing import List, Iterable
 
 
-def intersperse(iterable: Sequence, delimiter: object) -> List:
+def intersperse(iterable: Iterable, delimiter: object) -> List:
     output = []
     it = iter(iterable)
     output.append(next(it))
@@ -9,3 +11,7 @@ def intersperse(iterable: Sequence, delimiter: object) -> List:
         output.extend([delimiter, x])
 
     return output
+
+
+def flatten(iterables: Iterable[Iterable]) -> List:
+    return list(itertools.chain(iterables))

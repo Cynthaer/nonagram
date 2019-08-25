@@ -17,31 +17,30 @@ class State(Enum):
 
 
 class NonogramBoard:
-    _row_hints: List[List[int]]
-    _col_hints: List[List[int]]
+    hints: List[List[List[int]]]
     tiles: np.ndarray
 
-    def __init__(self, row_hints: Iterable[Hint], col_hints: Iterable[Hint]) -> None:
-        self._row_hints = [list(rh) for rh in row_hints]
-        self._col_hints = [list(ch) for ch in col_hints]
-        self.tiles = np.asarray([[State.BLANK] * len(self._col_hints)] * self.shape[0])
+    def __init__(self,
+                 row_hints: Iterable[Hint],
+                 col_hints: Iterable[Hint],
+                 tiles: Any = None) -> None:
+        self.hints = [[list(rh) for rh in row_hints], [list(ch) for ch in col_hints]]
+
+        if tiles:
+            self.tiles = np.asarray(tiles)
+        else:
+            self.tiles = np.asarray([[State.BLANK] * self.shape[1]] * self.shape[0])
 
         if not self._isvalid():
             raise Exception('Invalid hint configuration')
-
-    def __getitem__(self, key: Any) -> Union[np.ndarray, State]:
-        return self.tiles[key]
-
-    def __setitem__(self, key: Any, value) -> None:
-        self.tiles[key] = value
 
     def __repr__(self) -> str:
         return repr(self.tiles)
 
     def __str__(self) -> str:
-        r_hints = _justify_hints(self._row_hints)
+        r_hints = _justify_hints(self.hints[0])
         # c_hints are horizontal for ease of display
-        c_hints = _transpose(_justify_hints(self._col_hints))
+        c_hints = _transpose(_justify_hints(self.hints[1]))
 
         hor_pad = len(r_hints[0]) * 2
 
@@ -62,13 +61,7 @@ class NonogramBoard:
         """:return: (height, width)"""
         if hasattr(self, 'tiles'):
             return self.tiles.shape
-        return len(self._row_hints), len(self._col_hints)
-
-    def hints(self, axis: int) -> List[List[int]]:
-        if axis == 0:
-            return self._row_hints
-        elif axis == 1:
-            return self._col_hints
+        return len(self.hints[0]), len(self.hints[1])
 
     def line(self, index: int, axis: int) -> np.ndarray:
         if axis == 0:
@@ -101,20 +94,25 @@ class NonogramBoard:
         return True
 
     def _line_solved(self, index: int, axis: int):
-        hint = self.hints(axis)[index]
+        hint = self.hints[axis][index]
         line = self.line(index, axis)
         line_state = [len(list(g)) for k, g in groupby(line) if k == State.YES]
         return line_state == hint
 
     def _isvalid(self) -> bool:
+        if self.tiles.shape != (len(self.hints[0]), len(self.hints[1])):
+            return False
+
         # row hints
-        for hint in self.hints(0):
-            if sum(hint) + len(hint) - 1 > self.shape[1]:
+        for hint in self.hints[0]:
+            implied_width = sum(hint) + len(hint) - 1
+            if implied_width > len(self.hints[1]) or implied_width > self.tiles.shape[1]:
                 return False
 
         # col hints
-        for hint in self.hints(1):
-            if sum(hint) + len(hint) - 1 > self.shape[0]:
+        for hint in self.hints[1]:
+            implied_width = sum(hint) + len(hint) - 1
+            if implied_width > len(self.hints[0]) or implied_width > self.tiles.shape[0]:
                 return False
 
         return True
@@ -124,6 +122,10 @@ def read_json(path: str) -> NonogramBoard:
     with open(path) as f:
         d = json.load(f)
         return NonogramBoard(**d)
+
+
+def as_states(iterable: Iterable[int]):
+    return [State(i) for i in iterable]
 
 
 def _justify_hints(hints: List[List[int]]) -> List[List[str]]:
@@ -138,7 +140,7 @@ def _left_padded(l: List, length: int, value: object = None) -> List:
     return x
 
 
-def _transpose(ls: List[List]) -> List[List]:
+def _transpose(ls: Iterable[Iterable]) -> List[List]:
     return list(map(list, zip(*ls)))
 
 
