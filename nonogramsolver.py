@@ -1,3 +1,5 @@
+import numpy as np
+
 from nonogramboard import State, NonogramBoard, read_json
 from utils import *
 
