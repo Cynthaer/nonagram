@@ -1,62 +1,133 @@
-from nonogramboard import State, NonogramBoard
+from nonogramboard import State, NonogramBoard, read_json
 from utils import *
 
 
 class NonogramSolver:
     board: NonogramBoard
+    verbosity: int
 
-    def __init__(self, board: NonogramBoard):
+    def __init__(self, board: NonogramBoard, verbosity: int = 0):
         self.board = board
+        self.verbosity = verbosity
 
     def solve(self) -> None:
-        pass
+        while not self.board.solved():
+            if not self._full_pass():
+                if self.verbosity > 0:
+                    print('Cannot solve board.')
+                break
 
-    def _full_pass(self) -> None:
-        rules = [0]
-        for rule in rules:
-            self._pass(rule, 0)
-            self._pass(rule, 1)
+    def _full_pass(self, rule: int = None) -> bool:
+        rules = [self._zero_hint, self._full_hint, self._extend_edge]
 
-    def _pass(self, rule: int, axis: int) -> None:
-        for i in range(self.board.shape[axis]):
-            if rule == 0:
-                self._rule0(i, axis)
+        if rule is None:
+            for i in range(len(rules)):
+                if self._full_pass(i):
+                    return True
+            return False
 
-    def _apply_rule(self, rule: str, index: int, axis: int):
-        """Applies the indicated rule to the indicated line on the board.
+        for axis in range(2):
+            for l in range(self.board.shape[axis]):
+                if rules[rule](l, axis):
+                    return True
 
-        :param rule: the rule to apply
+        return False
+
+    def _zero_hint(self, index: int, axis: int) -> bool:
+        """ If hint is 0, entire line must be blank.
+
         :param index: the index of the line
         :param axis: 0 = rows, 1 = columns
         :return: True if the board has been updated, else False
-
-        Rules
-        =====
-        *Rule 1:* If the hint covers the entire line, solve the line.
         """
-
         if self.board.solved(index, axis):
             return False
 
         hint = self.board.hints[axis][index]
         line = self.board.line(index, axis)
 
-        if rule == 'full_hint':
-            if sum(hint) + len(hint) - 1 != len(line):
-                # doesn't apply
-                return False
+        if hint[0] != 0:
+            return False
 
-            pattern = [[State.YES] * h for h in hint]  # [[Y], [Y, Y]]
-            line[:] = flatten(intersperse(pattern, [State.NO]))  # [Y, N, Y, Y]
-            return True
-        elif rule == 'extend edge':
-            pass
-        else:
-            raise ValueError(f"'{rule}' is not a valid rule.")
+        line[:] = State.NO
+        if self.verbosity > 0:
+            print(self.board)
+        return True
 
-        return False
+    def _full_hint(self, index: int, axis: int) -> bool:
+        """
+        :param index: the index of the line
+        :param axis: 0 = rows, 1 = columns
+        :return: True if the board has been updated, else False
+        """
+        if self.board.solved(index, axis):
+            return False
+
+        hint = self.board.hints[axis][index]
+        line = self.board.line(index, axis)
+
+        if sum(hint) + len(hint) - 1 != len(line):
+            # doesn't apply
+            return False
+
+        pattern = [[State.YES] * h for h in hint]  # [[Y], [Y, Y]]
+        line[:] = flatten(intersperse(pattern, [State.NO]))  # [Y, N, Y, Y]
+        if self.verbosity > 0:
+            print(self.board)
+        return True
+
+    def _extend_edge(self, index: int, axis: int) -> bool:
+        """
+        If filled box is flush with an edge (including NOs), complete that block.
+
+        :param index: the index of the line
+        :param axis: 0 = rows, 1 = columns
+        :return: True if the board has been updated, else False
+        """
+        if self.board.solved(index, axis):
+            return False
+
+        hint = self.board.hints[axis][index]
+        line = self.board.line(index, axis)
+
+        # avoid strange behavior for 0 hints
+        if hint[0] == 0:
+            return False
+
+        def update_line(ln: np.ndarray, hnt: List[int]):
+            rle = run_length_encode(ln)
+
+            # clip the leading NOs
+            if ln[0] == State.NO:
+                ln = ln[rle[0]['length']:]
+                rle = run_length_encode(ln)
+
+            if (rle[0]['state'] == State.YES
+                    and rle[0]['length'] <= hnt[0]
+                    and rle[1]['state'] == State.BLANK):
+
+                fill_sequence = ([State.YES] * hnt[0])
+
+                # cap off with a NO if sequence doesn't hit the edge
+                if len(fill_sequence) < len(ln):
+                    fill_sequence += [State.NO]
+
+                ln[:len(fill_sequence)] = fill_sequence
+                if self.verbosity > 0:
+                    print(self.board)
+                return True
+            return False
+
+        # forward or backward, but only one
+        return update_line(line, hint) or update_line(line[::-1], hint[::-1])
+
+
+def _changed(old: np.ndarray, new: np.ndarray):
+    return np.any(old != new)
 
 
 if __name__ == '__main__':
-    brd = nb.read_json('tests/testboard.json')
-
+    brd = read_json('testboard.json')
+    solver = NonogramSolver(brd, 1)
+    print(brd)
+    solver.solve()

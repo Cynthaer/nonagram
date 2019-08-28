@@ -6,8 +6,6 @@ from typing import List, Tuple, Union, Iterable, Any
 
 import numpy as np
 
-Hint = Iterable[int]
-
 
 class State(Enum):
     BLANK = 0
@@ -20,8 +18,8 @@ class NonogramBoard:
     tiles: np.ndarray
 
     def __init__(self,
-                 row_hints: Iterable[Hint],
-                 col_hints: Iterable[Hint],
+                 row_hints: Iterable[Iterable[int]],
+                 col_hints: Iterable[Iterable[int]],
                  tiles: Any = None) -> None:
         self.hints = [[list(rh) for rh in row_hints], [list(ch) for ch in col_hints]]
 
@@ -94,7 +92,13 @@ class NonogramBoard:
     def _line_solved(self, index: int, axis: int):
         hint = self.hints[axis][index]
         line = self.line(index, axis)
+
+        if State.BLANK in line:
+            return False
+
         line_state = [len(list(g)) for k, g in groupby(line) if k == State.YES]
+        if len(line_state) == 0:
+            line_state = [0]
         return line_state == hint
 
     def _isvalid(self) -> bool:
